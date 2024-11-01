@@ -27,14 +27,31 @@ exports.userLogin = async (req, res) => {
     if (!user) {
       return res
         .status(401)
-        .json({ success: false, message: "Invalid Details" });
+        .json({
+          success: false,
+          message: "We could not find a matching account and/or password",
+        });
+    }
+
+    if (
+      user?.email?.email === undefined &&
+      user?.phone?.phoneNumber === undefined &&
+      user?.phone?.isVerify === undefined 
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid User"
+      });
     }
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res
         .status(401)
-        .json({ success: false, message: "Invalid Details" });
+        .json({
+          success: false,
+          message: "We could not find a matching account and/or password",
+        });
     }
 
     const token = await user.CreateToken();
@@ -99,8 +116,10 @@ exports.userSignUp = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      newUser,
+      user: newUser,
+      token
     });
+
   } catch (error) {
     console.log("Catch Error:: ", error);
     return res.status(500).json({
@@ -112,20 +131,29 @@ exports.userSignUp = async (req, res) => {
 
 exports.loadUser = async (req, res) => {
   try {
-
     const user = await User.findById(req.user._id);
-    if(!user){
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid User"
-      })
-    } 
+        message: "Invalid User",
+      });
+    }
+
+    if (
+      user?.email?.email === undefined &&
+      user?.phone?.phoneNumber === undefined &&
+      user?.phone?.isVerify === undefined
+    ) {
+      return res.status(401).json({
+        success: false,
+        user
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      user
-    })
-
+      user,
+    });
   } catch (error) {
     console.log("Catch Error:: ", error);
     return res.status(500).json({
@@ -133,7 +161,7 @@ exports.loadUser = async (req, res) => {
       message: error.message,
     });
   }
-}
+};
 
 exports.sendPhoneOtp = async (req, res) => {
   try {
@@ -313,15 +341,7 @@ exports.storeUserName = async (req, res) => {
     if (!userName) {
       return res
         .status(400)
-        .json({ success: false, message: "Enter Password" });
-    }
-
-    const isUser = await User.findOne({
-      userName: userName,
-      _id: { $ne: req?.user?._id },
-    });
-    if (isUser) {
-      return res.status(401).json({ success: false, message: "User Name Not Available" });
+        .json({ success: false, message: "Enter Username" });
     }
 
     const user = await User.findById(req.user._id);
@@ -329,14 +349,25 @@ exports.storeUserName = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid User" });
     }
 
+    const isUser = await User.findOne({
+      userName: userName,
+      _id: { $ne: req?.user?._id },
+    });
+    if (isUser) {
+      return res
+        .status(401)
+        .json({ success: false, message: "User Name Not Available" });
+    }
+
+
     user.userName = userName;
     await user.save();
 
     return res.status(200).json({
       success: true,
-      message: "User Name Save Successfully",
+      user,
+      message: "User Name Save Successfully"
     });
-
   } catch (error) {
     console.log("Catch Error:: ", error);
     return res.status(500).json({
@@ -348,9 +379,7 @@ exports.storeUserName = async (req, res) => {
 
 exports.isUserNameAvailable = async (req, res) => {
   try {
-
     const { userName } = req.body;
-
     if (!userName) {
       return res
         .status(400)
@@ -363,15 +392,15 @@ exports.isUserNameAvailable = async (req, res) => {
     });
 
     if (isUser) {
-      return res.status(401).json({ success: false, message: "User Name Not Available" });
+      return res
+        .status(401)
+        .json({ success: false, message: "User Name Not Available" });
     }
 
     return res.status(200).json({
       success: true,
       message: "user name available",
     });
-
-
   } catch (error) {
     console.log("Catch Error:: ", error);
     return res.status(500).json({
@@ -379,7 +408,7 @@ exports.isUserNameAvailable = async (req, res) => {
       message: error.message,
     });
   }
-}
+};
 
 exports.storeGenderAndAvatar = async (req, res) => {
   try {
