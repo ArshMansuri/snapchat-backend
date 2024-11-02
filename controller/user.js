@@ -13,15 +13,17 @@ exports.userLogin = async (req, res) => {
     }
 
     let user = null;
-
+    let errorMsg = ""
     if (isNaN(value)) {
       user = await User.findOne({
         $or: [{ userName: value }, { "email.email": value }],
       }).select("+password");
+      errorMsg = "We could not find a matching account for this email."
     } else {
       user = await User.findOne({
         $or: [{ "phone.phoneNumber": value }],
       }).select("+password");
+      errorMsg = "We could not find a matching account for this phone number."
     }
 
     if (!user) {
@@ -29,14 +31,13 @@ exports.userLogin = async (req, res) => {
         .status(401)
         .json({
           success: false,
-          message: "We could not find a matching account and/or password",
+          message: errorMsg,
         });
     }
 
     if (
       user?.email?.email === undefined &&
-      user?.phone?.phoneNumber === undefined &&
-      user?.phone?.isVerify === undefined 
+      user?.isVerify === false
     ) {
       return res.status(401).json({
         success: false,
@@ -50,7 +51,7 @@ exports.userLogin = async (req, res) => {
         .status(401)
         .json({
           success: false,
-          message: "We could not find a matching account and/or password",
+          message: "Incorrect password, please try again.",
         });
     }
 
@@ -141,8 +142,7 @@ exports.loadUser = async (req, res) => {
 
     if (
       user?.email?.email === undefined &&
-      user?.phone?.phoneNumber === undefined &&
-      user?.phone?.isVerify === undefined
+      user?.isVerify === false
     ) {
       return res.status(401).json({
         success: false,
@@ -181,7 +181,7 @@ exports.sendPhoneOtp = async (req, res) => {
     if (isUser) {
       return res
         .status(401)
-        .json({ success: false, message: "Phone Number Alredy Used" });
+        .json({ success: false, message: "This phone number has already been verified by another account. please enter another phone number" });
     }
 
     otp = Math.floor(Math.random() * 900000) + 1000;
@@ -235,15 +235,15 @@ exports.userVerifyPhoneOtp = async (req, res) => {
     if (
       !user ||
       user.phone.isVerify === true ||
-      phone !== user.phone.phoneNumber
+      phone != user.phone.phoneNumber
     ) {
-      return res.status(400).json({ message: "Invalid inputs" });
+      return res.status(400).json({ message: "This number already use by another account" });
     }
 
     if (user.phone.otp !== otp || user.phone.otpExpired < Date.now()) {
       return res
         .status(400)
-        .json({ success: false, message: "OTP DOn't Match And expired" });
+        .json({ success: false, message: "That's not the right otp" });
     }
 
     user.phone.otp = null;
@@ -277,7 +277,7 @@ exports.storeEmail = async (req, res) => {
     if (isUser || isUser?.email?.isVerify) {
       return res
         .status(400)
-        .json({ success: false, message: "Email Already Used" });
+        .json({ success: false, message: "This email has already been verified by another account. please enter another email" });
     }
 
     const user = await User.findById(req.user._id);
