@@ -10,7 +10,7 @@ const socketIo = require('socket.io');
 const user = require('./routes/user')
 const cloudinary = require("cloudinary")
 
-
+console.log("temp")
 
 //================== MiddelWers =====================================
 const corsOptions = {
