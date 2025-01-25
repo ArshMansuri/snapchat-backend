@@ -2,6 +2,7 @@ const User = require("../model/User");
 const { sendSms } = require("../utils/sendSms");
 const verifier = require("email-verify");
 const cloudinary = require("cloudinary");
+const { default: mongoose } = require("mongoose");
 
 exports.userLogin = async (req, res) => {
   try {
@@ -13,46 +14,39 @@ exports.userLogin = async (req, res) => {
     }
 
     let user = null;
-    let errorMsg = ""
+    let errorMsg = "";
     if (isNaN(value)) {
       user = await User.findOne({
         $or: [{ userName: value }, { "email.email": value }],
       }).select("+password");
-      errorMsg = "We could not find a matching account for this email."
+      errorMsg = "We could not find a matching account for this email.";
     } else {
       user = await User.findOne({
         $or: [{ "phone.phoneNumber": value }],
       }).select("+password");
-      errorMsg = "We could not find a matching account for this phone number."
+      errorMsg = "We could not find a matching account for this phone number.";
     }
 
     if (!user) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: errorMsg,
-        });
-    }
-
-    if (
-      user?.email?.email === undefined &&
-      user?.isVerify === false
-    ) {
       return res.status(401).json({
         success: false,
-        message: "Invalid User"
+        message: errorMsg,
+      });
+    }
+
+    if (user?.email?.email === undefined && user?.isVerify === false) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid User",
       });
     }
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Incorrect password, please try again.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Incorrect password, please try again.",
+      });
     }
 
     const token = await user.CreateToken();
@@ -118,9 +112,8 @@ exports.userSignUp = async (req, res) => {
     return res.status(201).json({
       success: true,
       user: newUser,
-      token
+      token,
     });
-
   } catch (error) {
     console.log("Catch Error:: ", error);
     return res.status(500).json({
@@ -140,13 +133,10 @@ exports.loadUser = async (req, res) => {
       });
     }
 
-    if (
-      user?.email?.email === undefined &&
-      user?.isVerify === false
-    ) {
+    if (user?.email?.email === undefined && user?.isVerify === false) {
       return res.status(401).json({
         success: false,
-        user
+        user,
       });
     }
 
@@ -179,9 +169,11 @@ exports.sendPhoneOtp = async (req, res) => {
     });
 
     if (isUser) {
-      return res
-        .status(401)
-        .json({ success: false, message: "This phone number has already been verified by another account. please enter another phone number" });
+      return res.status(401).json({
+        success: false,
+        message:
+          "This phone number has already been verified by another account. please enter another phone number",
+      });
     }
 
     otp = Math.floor(Math.random() * 900000) + 1000;
@@ -237,7 +229,9 @@ exports.userVerifyPhoneOtp = async (req, res) => {
       user.phone.isVerify === true ||
       phone != user.phone.phoneNumber
     ) {
-      return res.status(400).json({ message: "This number already use by another account" });
+      return res
+        .status(400)
+        .json({ message: "This number already use by another account" });
     }
 
     if (user.phone.otp !== otp || user.phone.otpExpired < Date.now()) {
@@ -275,9 +269,11 @@ exports.storeEmail = async (req, res) => {
 
     const isUser = await User.findOne({ "email.email": email });
     if (isUser || isUser?.email?.isVerify) {
-      return res
-        .status(400)
-        .json({ success: false, message: "This email has already been verified by another account. please enter another email" });
+      return res.status(400).json({
+        success: false,
+        message:
+          "This email has already been verified by another account. please enter another email",
+      });
     }
 
     const user = await User.findById(req.user._id);
@@ -359,14 +355,13 @@ exports.storeUserName = async (req, res) => {
         .json({ success: false, message: "User Name Not Available" });
     }
 
-
     user.userName = userName;
     await user.save();
 
     return res.status(200).json({
       success: true,
       user,
-      message: "User Name Save Successfully"
+      message: "User Name Save Successfully",
     });
   } catch (error) {
     console.log("Catch Error:: ", error);
@@ -450,3 +445,164 @@ exports.storeGenderAndAvatar = async (req, res) => {
     });
   }
 };
+
+exports.getUserFriendSuggetions = async (req, res) => {
+  try {
+    const { contacts } = req.body;
+
+    const phoneNums = contacts.map((num) => {
+      return num.phone;
+    });
+
+    let alreadyFriends = await User.findById(req.user._id).select("friends");
+
+    let friendSuggestion = await await User.find({
+      $and: [
+        { "phone.phoneNumber": { $in: phoneNums } },
+        { _id: { $ne: req.user._id } },
+        { _id: { $nin: alreadyFriends.friends } },
+        { isVerify: true },
+      ],
+    }).select("_id userName firstName avatarImg phone.phoneNumber");
+
+    for (let i = 0; i < friendSuggestion.length; i++) {
+      const index = contacts.findIndex(
+        (ele) =>
+          ele?.phone?.toString() == friendSuggestion[i]?.phone?.phoneNumber
+      );
+
+      friendSuggestion[i].firstName = contacts[index]?.name;
+    }
+
+    let tempFriendSuggetion = [];
+    if (friendSuggestion.length < 10) {
+      tempFriendSuggetion = await User.find({
+        $and: [
+          { _id: { $ne: req.user._id } },
+          { _id: { $nin: alreadyFriends.friends } },
+          { "phone.phoneNumber": { $nin: phoneNums } },
+        ],
+        // "isVerify": true
+      })
+        .select("_id userName firstName avatarImg phone.phoneNumber")
+        .limit(20);
+    }
+
+    friendSuggestion = [...friendSuggestion, ...tempFriendSuggetion];
+
+    return res.status(200).json({
+      success: true,
+      friendSuggestion,
+    });
+  } catch (error) {
+    console.log("Catch Error:: ", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.addFriend = async(req, res) =>{
+  try {
+
+    let {friendId} = req.body
+    
+    if(!friendId){
+      return res.status(400).json({
+        success: false,
+        message: "Frined Id Not Provided"
+      })
+    }
+
+    friendId = new mongoose.Types.ObjectId(friendId)
+
+    const isFriendExist = await User.findById(friendId);
+    if(!isFriendExist){
+      return res.status(404).json({
+        success: false,
+        message: "Friend Not Found"
+      })
+    }
+
+    const user = await User.findById(req.user._id).select("friends")
+
+    const index = user?.friends.findIndex(ele => ele.toString() === friendId.toString())
+    if(index != -1){
+      return res.status(409).json({
+        success: false,
+        message: "User Is Already Your Friend"
+      })
+    }
+
+
+
+    user?.friends?.push(friendId)
+    await user.save()
+
+    return res.status(200).json({
+      success: true,
+      message: "Friend Added Successfully"
+    })
+
+  } catch (error) {
+    console.log("Catch Error:: ", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+
+exports.removeFriend = async(req, res) =>{
+  try {
+
+    let {friendId} = req.body
+    
+    if(!friendId){
+      return res.status(400).json({
+        success: false,
+        message: "Frined Id Not Provided"
+      })
+    }
+
+    friendId = new mongoose.Types.ObjectId(friendId)
+
+    const isFriendExist = await User.findById(friendId);
+    if(!isFriendExist){
+      return res.status(404).json({
+        success: false,
+        message: "Friend Not Found"
+      })
+    }
+
+    const user = await User.findById(req.user._id).select("friends")
+
+    const index = user?.friends.findIndex(ele => ele.toString() === friendId.toString())
+    if(index == -1){
+      return res.status(409).json({
+        success: false,
+        message: "User Is Not Your Friend"
+      })
+    }
+
+
+
+
+    user?.friends?.splice(index,1)
+    await user.save()
+
+    return res.status(200).json({
+      success: true,
+      message: "Friend Removed Successfully"
+    })
+
+  } catch (error) {
+    console.log("Catch Error:: ", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
