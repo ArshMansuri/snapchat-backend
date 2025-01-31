@@ -470,8 +470,11 @@ exports.getUserFriendSuggetions = async (req, res) => {
         (ele) =>
           ele?.phone?.toString() == friendSuggestion[i]?.phone?.phoneNumber
       );
-
-      friendSuggestion[i].firstName = contacts[index]?.name;
+      if(index != -1){
+        friendSuggestion[i] = friendSuggestion[i].toObject();
+        friendSuggestion[i].firstName = contacts[index]?.name;
+        friendSuggestion[i].msg = "IN MY CONTACTS"
+      }
     }
 
     let tempFriendSuggetion = [];
@@ -480,7 +483,7 @@ exports.getUserFriendSuggetions = async (req, res) => {
         $and: [
           { _id: { $ne: req.user._id } },
           { _id: { $nin: alreadyFriends.friends } },
-          { "phone.phoneNumber": { $nin: phoneNums } },
+          { "phone.phoneNumber": null },
         ],
         // "isVerify": true
       })
@@ -542,6 +545,7 @@ exports.addFriend = async(req, res) =>{
 
     return res.status(200).json({
       success: true,
+      friendId,
       message: "Friend Added Successfully"
     })
 
