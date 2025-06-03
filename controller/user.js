@@ -176,7 +176,7 @@ exports.sendPhoneOtp = async (req, res) => {
       });
     }
 
-    otp = Math.floor(Math.random() * 900000) + 1000;
+    otp = Math.floor(100000 + Math.random() * 900000);
     otpExpired = new Date(Date.now() + 5 * 60 * 1000);
 
     tempPhoneNumber = "9574478944";
@@ -446,117 +446,123 @@ exports.storeGenderAndAvatar = async (req, res) => {
   }
 };
 
-exports.getUserFriendSuggetions = async (req, res) => {
-  try {
-    const { contacts } = req.body;
+// exports.getUserFriendSuggetions = async (req, res) => {
+//   try {
+//     const { contacts } = req.body;
 
-    const phoneNums = contacts.map((num) => {
-      return num.phone;
-    });
+//     const phoneNums = contacts.map((num) => {
+//       return num.phone;
+//     });
 
-    let alreadyFriends = await User.findById(req.user._id).select("friends");
+//     let alreadyFriends = await User.findById(req.user._id).select("friends");
 
-    let friendSuggestion = await await User.find({
-      $and: [
-        { "phone.phoneNumber": { $in: phoneNums } },
-        { _id: { $ne: req.user._id } },
-        { _id: { $nin: alreadyFriends.friends } },
-        { isVerify: true },
-      ],
-    }).select("_id userName firstName avatarImg phone.phoneNumber");
+//     let friendSuggestion = await await User.find({
+//       $and: [
+//         { "phone.phoneNumber": { $in: phoneNums } },
+//         { _id: { $ne: req.user._id } },
+//         { _id: { $nin: alreadyFriends.friends } },
+//         { isVerify: true },
+//       ],
+//     }).select("_id userName firstName avatarImg phone.phoneNumber");
 
-    for (let i = 0; i < friendSuggestion.length; i++) {
-      const index = contacts.findIndex(
-        (ele) =>
-          ele?.phone?.toString() == friendSuggestion[i]?.phone?.phoneNumber
-      );
-      if(index != -1){
-        friendSuggestion[i] = friendSuggestion[i].toObject();
-        friendSuggestion[i].firstName = contacts[index]?.name;
-        friendSuggestion[i].msg = "IN MY CONTACTS"
-      }
-    }
+//     for (let i = 0; i < friendSuggestion.length; i++) {
+//       const index = contacts.findIndex(
+//         (ele) =>
+//           ele?.phone?.toString() == friendSuggestion[i]?.phone?.phoneNumber
+//       );
+//       if(index != -1){
+//         friendSuggestion[i] = friendSuggestion[i].toObject();
+//         friendSuggestion[i].firstName = contacts[index]?.name;
+//         friendSuggestion[i].msg = "IN MY CONTACTS"
+//       }
+//     }
 
-    let tempFriendSuggetion = [];
-    if (friendSuggestion.length < 10) {
-      tempFriendSuggetion = await User.find({
-        $and: [
-          { _id: { $ne: req.user._id } },
-          { _id: { $nin: alreadyFriends.friends } },
-          { "phone.phoneNumber": null },
-        ],
-        // "isVerify": true
-      })
-        .select("_id userName firstName avatarImg phone.phoneNumber")
-        .limit(20);
-    }
+//     console.log(friendSuggestion)
 
-    friendSuggestion = [...friendSuggestion, ...tempFriendSuggetion];
+//     let tempFriendSuggetion = [];
+//     if (friendSuggestion.length < 10) {
+//       tempFriendSuggetion = await User.find({
+//         $and: [
+//           { _id: { $ne: req.user._id } },
+//           // { _id: { $nin: friendSuggestion._id } },
+//           { _id: { $nin: alreadyFriends.friends } },
+//            { "phone.phoneNumber": { $nin: phoneNums } }
+//           // { "phone.phoneNumber": null },
+//         ],
+//         // "isVerify": true
+//       })
+//         .select("_id userName firstName avatarImg phone.phoneNumber")
+//         .limit(20);
+//     }
 
-    return res.status(200).json({
-      success: true,
-      friendSuggestion,
-    });
-  } catch (error) {
-    console.log("Catch Error:: ", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
+//     console.log(tempFriendSuggetion)
 
-exports.addFriend = async(req, res) =>{
-  try {
+//     friendSuggestion = [...friendSuggestion, ...tempFriendSuggetion];
 
-    let {friendId} = req.body
+//     return res.status(200).json({
+//       success: true,
+//       friendSuggestion,
+//     });
+//   } catch (error) {
+//     console.log("Catch Error:: ", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
+// exports.addFriend = async(req, res) =>{
+//   try {
+
+//     let {friendId} = req.body
     
-    if(!friendId){
-      return res.status(400).json({
-        success: false,
-        message: "Frined Id Not Provided"
-      })
-    }
+//     if(!friendId){
+//       return res.status(400).json({
+//         success: false,
+//         message: "Frined Id Not Provided"
+//       })
+//     }
 
-    friendId = new mongoose.Types.ObjectId(friendId)
+//     friendId = new mongoose.Types.ObjectId(friendId)
 
-    const isFriendExist = await User.findById(friendId);
-    if(!isFriendExist){
-      return res.status(404).json({
-        success: false,
-        message: "Friend Not Found"
-      })
-    }
+//     const isFriendExist = await User.findById(friendId);
+//     if(!isFriendExist){
+//       return res.status(404).json({
+//         success: false,
+//         message: "Friend Not Found"
+//       })
+//     }
 
-    const user = await User.findById(req.user._id).select("friends")
+//     const user = await User.findById(req.user._id).select("friends")
 
-    const index = user?.friends.findIndex(ele => ele.toString() === friendId.toString())
-    if(index != -1){
-      return res.status(409).json({
-        success: false,
-        message: "User Is Already Your Friend"
-      })
-    }
+//     const index = user?.friends.findIndex(ele => ele.toString() === friendId.toString())
+//     if(index != -1){
+//       return res.status(409).json({
+//         success: false,
+//         message: "User Is Already Your Friend"
+//       })
+//     }
 
 
 
-    user?.friends?.push(friendId)
-    await user.save()
+//     user?.friends?.push(friendId)
+//     await user.save()
 
-    return res.status(200).json({
-      success: true,
-      friendId,
-      message: "Friend Added Successfully"
-    })
+//     return res.status(200).json({
+//       success: true,
+//       friendId,
+//       message: "Friend Added Successfully"
+//     })
 
-  } catch (error) {
-    console.log("Catch Error:: ", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+//   } catch (error) {
+//     console.log("Catch Error:: ", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// }
 
 
 exports.removeFriend = async(req, res) =>{

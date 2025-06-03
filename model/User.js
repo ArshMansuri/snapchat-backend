@@ -61,10 +61,10 @@ const UserSchema = mongoose.Schema({
 
     token: String,
 
-    friends: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
-    }],
+    // friends: [{
+    //     type: mongoose.Schema.Types.ObjectId,
+    //     ref: "User"
+    // }],
 
     blockFriends: [{
         type: mongoose.Schema.Types.ObjectId,

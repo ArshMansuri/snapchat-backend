@@ -16,8 +16,8 @@ router.route('/user/store/genserandavatar').post(isUserAuth, storeGenderAndAvata
 
 
 
-router.route('/user/friend/suggestion').post(isUserAuth, getUserFriendSuggetions)
-router.route('/user/friend/add').post(isUserAuth, addFriend)
+// router.route('/user/friend/suggestion').post(isUserAuth, getUserFriendSuggetions)
+// router.route('/user/friend/add').post(isUserAuth, addFriend)
 router.route('/user/friend/remove').post(isUserAuth, removeFriend)
 
 module.exports = router

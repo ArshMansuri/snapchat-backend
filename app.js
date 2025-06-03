@@ -8,6 +8,8 @@ const bodyparser = require("body-parser")
 const cookiParser = require('cookie-parser')
 const socketIo = require('socket.io');
 const user = require('./routes/user')
+const snap = require('./routes/snap')
+const friend = require('./routes/friend')
 const cloudinary = require("cloudinary")
 
 //================== MiddelWers =====================================
@@ -47,6 +49,8 @@ cloudinary.config({
 
 //=================== Routers =======================================
 app.use('/api/v1', user)
+app.use('/api/v1', snap)
+app.use('/api/v1', friend)
 
 
 app.get('/', (req,res)=>{
