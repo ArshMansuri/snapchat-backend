@@ -25,6 +25,7 @@ const io = socketIo(server)
 app.use(cors(corsOptions));  
 app.use(bodyparser.json({limit: "50mb"}))
 app.use(express.json({limit: "50mb"}))
+// app.use(express.urlencoded({ limit: '100mb', extended: true }));
 app.use(express.urlencoded({extended: true}))
 app.use(cookiParser())
 

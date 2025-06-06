@@ -1,14 +1,19 @@
 const { CallPage } = require("twilio/lib/rest/api/v2010/account/call");
 const Snap = require("../model/Snap");
 const User = require("../model/User");
-const cloudinary = require("cloudinary");
+// const cloudinary = require("cloudinary");
 const Friend = require("../model/Friend");
-
+const multer = require('multer');
+const { Readable } = require('stream');
+// const storage = multer.memoryStorage();
+// const upload = multer({ storage });
+const cloudinary = require('cloudinary').v2;
 
 
 exports.sendSnap = async (req, res) => {
     try {
-        const { snap, recv, mtype, } = req.body;
+        const { recv, mtype } = req.body;
+        const file = req.file;
 
         const user = await User.findById(req.user._id);
         if (!user) {
@@ -18,30 +23,42 @@ exports.sendSnap = async (req, res) => {
             });
         }
 
-        if (!snap || !mtype || !recv || recv.length <= 0) {
-            return res.status(401).json({
+        if (!file || !mtype || !recv || recv.length <= 0) {
+            return res.status(400).json({
                 success: false,
-                message: "Enter All Details",
+                message: "Enter all details and provide an image file",
             });
         }
 
-        const imgUri = await cloudinary.v2.uploader.upload(snap, {
-            folder: "snapchat/snaps",
-        });
+
+        const uploadFromBuffer = (buffer) => {
+            return new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    { folder: "snapchat/snaps" },
+                    (error, result) => {
+                        if (result) resolve(result);
+                        else reject(error);
+                    }
+                );
+                stream.end(buffer);
+            });
+        };
+
+        const imgUri = await uploadFromBuffer(file.buffer);
 
         const newSnapRecord = await Snap.create({
             sender: user.id,
             receivers: recv,
             mediaType: mtype,
             mediaUrl: imgUri.secure_url
-        })
+        });
 
-        console.log(newSnapRecord);
+        // console.log(newSnapRecord);
 
         return res.status(201).json({
             success: true,
-            message: "Snap Send Successfully"
-        })
+            message: "Snap sent successfully"
+        });
 
     } catch (error) {
         console.log("Catch Error:: ", error);
@@ -50,7 +67,53 @@ exports.sendSnap = async (req, res) => {
             message: error.message,
         });
     }
-}
+};
+
+// exports.sendSnap = async (req, res) => {
+//     try {
+//         const { snap, recv, mtype, } = req.body;
+
+//         const user = await User.findById(req.user._id);
+//         if (!user) {
+//             return res.status(401).json({
+//                 success: false,
+//                 message: "Invalid User",
+//             });
+//         }
+
+//         if (!snap || !mtype || !recv || recv.length <= 0) {
+//             return res.status(401).json({
+//                 success: false,
+//                 message: "Enter All Details",
+//             });
+//         }
+
+//         const imgUri = await cloudinary.v2.uploader.upload(snap, {
+//             folder: "snapchat/snaps",
+//         });
+
+//         const newSnapRecord = await Snap.create({
+//             sender: user.id,
+//             receivers: recv,
+//             mediaType: mtype,
+//             mediaUrl: imgUri.secure_url
+//         })
+
+//         console.log(newSnapRecord);
+
+//         return res.status(201).json({
+//             success: true,
+//             message: "Snap Send Successfully"
+//         })
+
+//     } catch (error) {
+//         console.log("Catch Error:: ", error);
+//         return res.status(500).json({
+//             success: false,
+//             message: error.message,
+//         });
+//     }
+// }
 
 exports.getAllSnap = async (req, res) => {
     try {
@@ -151,7 +214,7 @@ exports.getAllFriendWithSnap = async (req, res) => {
             return new Date(b.addedAt) - new Date(a.addedAt);
         });
 
-        
+
 
         console.log(result)
 
@@ -161,7 +224,7 @@ exports.getAllFriendWithSnap = async (req, res) => {
         })
 
     } catch (error) {
-        console.log("Catch Error:: ", error);   
+        console.log("Catch Error:: ", error);
         return res.status(500).json({
             success: false,
             message: error.message,
